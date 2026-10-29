@@ -19,14 +19,19 @@ jobs:
           # Exact match: a query string such as ?client= stops Antigravity from starting OAuth.
           jq -e '.mcpServers.apify.serverUrl == "https://mcp.apify.com"' mcp_config.json > /dev/null
 
-      - name: Routing rule fits Antigravity's 24,000-byte limit
-        run: |
-          size=$(wc -c < rules/apify.md)
-          echo "rules/apify.md: ${size} bytes"
-          test "$size" -lt 24000
-
       - name: Install Antigravity CLI
         run: ./.github/scripts/install-agy.sh
 
       - name: Antigravity validator
         run: agy plugin validate --strict --json .
+
+      - name: Routing rule fits Antigravity's 24,000-byte limit
+        run: |
+          # rules/ arrives with the first sync PR from apify-plugins-internal; until then, skip.
+          if [ ! -f rules/apify.md ]; then
+            echo "::notice::rules/apify.md not synced yet, skipping the size check"
+            exit 0
+          fi
+          size=$(wc -c < rules/apify.md)
+          echo "rules/apify.md: ${size} bytes"
+          test "$size" -le 24000

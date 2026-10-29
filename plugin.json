@@ -12,7 +12,13 @@
   "homepage": "https://apify.com",
   "repository": "https://github.com/apify/apify-antigravity-plugin",
   "license": "Apache-2.0",
-  "keywords": ["apify", "data", "scraping", "web-scraping", "automation"],
+  "keywords": [
+    "apify",
+    "data",
+    "scraping",
+    "web-scraping",
+    "automation"
+  ],
   "logo": "assets/icon.png",
   "suggestedPrompts": [
     "Find the top 20 coffee shops in Prague on Google Maps with ratings and addresses",

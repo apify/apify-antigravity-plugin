@@ -135,7 +135,7 @@ The executable requirements come from the skills themselves: Route 1 uses the MC
 
 ## Data and credentials
 
-The plugin ships only text files (Markdown, JSON, and the license) and an icon image. It has no hooks, scripts, or executables, so it has no code of its own that reads, stores, or sends your Apify credentials. Everything it does goes through one of the three setup paths:
+The plugin ships only text files (Markdown, JSON, and the license) and an icon image. It has no hooks, sidecars, or scripts that Antigravity runs, so it has no code of its own that reads, stores, or sends your Apify credentials. Everything it does goes through one of the three setup paths:
 
 | Path | What leaves your machine | Where it goes | Which credential is used |
 |---|---|---|---|
