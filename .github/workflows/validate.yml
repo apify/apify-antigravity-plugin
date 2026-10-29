@@ -1,0 +1,32 @@
+name: Validate plugin
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Manifest and MCP config are valid JSON
+        run: |
+          jq -e '.name == "apify"' plugin.json > /dev/null
+          # Exact match: a query string such as ?client= stops Antigravity from starting OAuth.
+          jq -e '.mcpServers.apify.serverUrl == "https://mcp.apify.com"' mcp_config.json > /dev/null
+
+      - name: Routing rule fits Antigravity's 24,000-byte limit
+        run: |
+          size=$(wc -c < rules/apify.md)
+          echo "rules/apify.md: ${size} bytes"
+          test "$size" -lt 24000
+
+      - name: Install Antigravity CLI
+        run: ./.github/scripts/install-agy.sh
+
+      - name: Antigravity validator
+        run: agy plugin validate --strict --json .

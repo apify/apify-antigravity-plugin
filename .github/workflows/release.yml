@@ -1,0 +1,119 @@
+name: Create a release
+
+# Push-button release: run this from the Actions tab (no manual tagging).
+# git-cliff derives the version from conventional commits, we bump plugin.json
+# + CHANGELOG.md, and create the GitHub release. Antigravity installs the plugin
+# straight from the repo, so there is no artifact to attach.
+#
+# The first release must use release_type "custom" (e.g. custom_version v1.0.0):
+# "auto" needs a prior tag.
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Release type
+        required: true
+        type: choice
+        default: auto
+        options: [auto, custom, patch, minor, major]
+      custom_version:
+        description: The custom version to bump to (only for "custom" type)
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release_metadata:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      version_number: ${{ steps.release_metadata.outputs.version_number }}
+      tag_name: ${{ steps.release_metadata.outputs.tag_name }}
+      changelog: ${{ steps.release_metadata.outputs.changelog }}
+      release_notes: ${{ steps.release_metadata.outputs.release_notes }}
+    steps:
+      - name: Verify running on main in the expected repository
+        if: github.ref != 'refs/heads/main' || github.repository != 'apify/apify-antigravity-plugin'
+        run: |
+          echo "::error title=Wrong branch or repository::Releases must run from main in apify/apify-antigravity-plugin. ref=${{ github.ref }} repo=${{ github.repository }}"
+          exit 1
+      - name: Validate inputs
+        if: inputs.release_type == 'custom' && inputs.custom_version == ''
+        run: |
+          echo "::error title=Missing custom_version::release_type is 'custom' but custom_version is empty. Provide a custom version (e.g. v1.0.0) and re-run the workflow."
+          exit 1
+      - uses: apify/actions/git-cliff-release@v1.1.2
+        name: Prepare release metadata
+        id: release_metadata
+        with:
+          release_type: ${{ inputs.release_type }}
+          custom_version: ${{ inputs.custom_version }}
+          existing_changelog_path: CHANGELOG.md
+
+  bump_and_changelog:
+    name: Bump plugin.json and update changelog
+    needs: [release_metadata]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      changelog_commitish: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.APIFY_SERVICE_ACCOUNT_GITHUB_TOKEN }}
+      - name: Bump version in plugin.json
+        env:
+          VERSION: ${{ needs.release_metadata.outputs.version_number }}
+        run: |
+          jq --indent 2 --arg v "$VERSION" '.version = $v' plugin.json > plugin.tmp && mv plugin.tmp plugin.json
+      - name: Write updated CHANGELOG.md
+        env:
+          CHANGELOG: ${{ needs.release_metadata.outputs.changelog }}
+        run: printf '%s\n' "$CHANGELOG" > CHANGELOG.md
+      - name: Commit and push
+        id: commit
+        env:
+          VERSION: ${{ needs.release_metadata.outputs.version_number }}
+        run: |
+          git config user.name  "apify-plugins-bot"
+          git config user.email "apify-plugins-bot@users.noreply.github.com"
+          git add plugin.json CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "No plugin.json/changelog changes to commit"
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "chore(release): ${VERSION} [skip ci]"
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  create_github_release:
+    name: Create GitHub release
+    needs: [release_metadata, bump_and_changelog]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: softprops/action-gh-release@v2.6.2
+        with:
+          tag_name: ${{ needs.release_metadata.outputs.tag_name }}
+          name: ${{ needs.release_metadata.outputs.version_number }}
+          body: ${{ needs.release_metadata.outputs.release_notes }}
+          target_commitish: ${{ needs.bump_and_changelog.outputs.changelog_commitish }}
+      - name: Summary
+        run: |
+          echo "### Released ${{ needs.release_metadata.outputs.version_number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "[${{ needs.release_metadata.outputs.tag_name }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.release_metadata.outputs.tag_name }})" >> "$GITHUB_STEP_SUMMARY"

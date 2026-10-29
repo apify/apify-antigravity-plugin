@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "apify": {
-      "serverUrl": "https://mcp.apify.com?client=antigravity+plugin"
+      "serverUrl": "https://mcp.apify.com"
     }
   }
 }
