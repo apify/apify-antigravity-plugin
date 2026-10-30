@@ -24,6 +24,8 @@ Requires the [**Antigravity CLI**](https://antigravity.google/download) (`agy`) 
 agy plugin install https://github.com/apify/apify-antigravity-plugin
 ```
 
+You can also install from the [release ZIP](https://github.com/apify/apify-antigravity-plugin/releases/latest/download/apify-antigravity-plugin.zip): extract it into `~/.gemini/config/plugins` as described for the app below. The CLI and the app share that folder.
+
 ### Antigravity App
 
 The [Antigravity App](https://antigravity.google/download) installs plugins from a folder. Download [`apify-antigravity-plugin.zip`](https://github.com/apify/apify-antigravity-plugin/releases/latest/download/apify-antigravity-plugin.zip) from the latest release and extract it into your global plugins folder, so the plugin ends up in `~/.gemini/config/plugins/apify`.
