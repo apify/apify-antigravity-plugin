@@ -2,8 +2,8 @@ name: Create a release
 
 # Push-button release: run this from the Actions tab (no manual tagging).
 # git-cliff derives the version from conventional commits, we bump plugin.json
-# + CHANGELOG.md, and create the GitHub release. Antigravity installs the plugin
-# straight from the repo, so there is no artifact to attach.
+# + CHANGELOG.md, create the GitHub release, and attach the plugin ZIP for app
+# users who install without git.
 #
 # The first release must use release_type "custom" (e.g. custom_version v1.0.0):
 # "auto" needs a prior tag.
@@ -53,6 +53,25 @@ jobs:
         run: |
           echo "::error title=Missing custom_version::release_type is 'custom' but custom_version is empty. Provide a custom version (e.g. v1.0.0) and re-run the workflow."
           exit 1
+      # git-cliff-release checks out into a subfolder, but its "Nothing to release"
+      # guard runs `git describe` in the workspace root; without this checkout the
+      # guard silently passes and an `auto` run re-releases the last tag.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Fail before anything is pushed or released: until the first sync PR from
+      # apify-plugins-internal lands, the ZIP would ship without skills, agent, and rule.
+      - name: Verify the generated content is synced
+        run: |
+          missing=""
+          for entry in plugin.json mcp_config.json assets README.md LICENSE agents/apify.md rules/apify.md; do
+            [ -e "$entry" ] || missing="$missing $entry"
+          done
+          ls skills/*/SKILL.md > /dev/null 2>&1 || missing="$missing skills/*/SKILL.md"
+          if [ -n "$missing" ]; then
+            echo "::error title=Plugin content missing::Missing:$missing. Merge the sync PR from apify-plugins-internal first."
+            exit 1
+          fi
       - uses: apify/actions/git-cliff-release@v1.1.2
         name: Prepare release metadata
         id: release_metadata
@@ -113,7 +132,34 @@ jobs:
           name: ${{ needs.release_metadata.outputs.version_number }}
           body: ${{ needs.release_metadata.outputs.release_notes }}
           target_commitish: ${{ needs.bump_and_changelog.outputs.changelog_commitish }}
+
+  package_zip:
+    name: Package and attach plugin ZIP
+    needs: [release_metadata, bump_and_changelog, create_github_release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump_and_changelog.outputs.changelog_commitish }}
+      # The file name stays fixed so README can link releases/latest/download/<name>.
+      # Everything sits under apify/, so unzipping into the plugins folder creates plugins/apify.
+      - name: Build plugin ZIP
+        run: |
+          ZIP=apify-antigravity-plugin.zip
+          mkdir -p dist/apify
+          for entry in plugin.json mcp_config.json assets skills agents rules README.md LICENSE; do
+            cp -R "$entry" dist/apify/
+          done
+          ( cd dist && zip -r "../$ZIP" apify -x '*.DS_Store' )
+          echo "ZIP=$ZIP" >> "$GITHUB_ENV"
+          unzip -l "$ZIP"
+      - name: Attach ZIP to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ needs.release_metadata.outputs.tag_name }}" "$ZIP" --clobber
       - name: Summary
         run: |
           echo "### Released ${{ needs.release_metadata.outputs.version_number }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "[${{ needs.release_metadata.outputs.tag_name }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.release_metadata.outputs.tag_name }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "Attached \`$ZIP\` to [${{ needs.release_metadata.outputs.tag_name }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.release_metadata.outputs.tag_name }})" >> "$GITHUB_STEP_SUMMARY"
