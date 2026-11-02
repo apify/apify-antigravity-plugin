@@ -21,7 +21,7 @@
   ],
   "logo": "assets/icon.png",
   "suggestedPrompts": [
-    "Find the top 20 coffee shops in Prague on Google Maps with ratings and addresses",
+    "Use Apify to find the top 20 coffee shops in Prague on Google Maps with ratings and addresses",
     "Create a new Apify Actor in TypeScript that scrapes product prices",
     "Add Apify to my app to scrape LinkedIn job postings"
   ]

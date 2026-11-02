@@ -9,10 +9,10 @@ Official Apify plugin for Google Antigravity. Ask for web data in plain language
 1. Ask for something:
 
     ```text
-    find me 5 well-rated coffee shops in Seattle and export to CSV
+    Use Apify to find me 5 well-rated coffee shops in Seattle and export to CSV
     ```
 
-    The agent searches Apify Store, picks an Actor, runs it, and returns the results. If that works, the plugin is set up.
+    The agent searches Apify Store, picks an Actor, runs it, and returns the results. If that works, the plugin is set up. Mention Apify, an Actor, or Apify Store in your request; otherwise the agent may answer with a plain web search instead.
 
 ## Installation
 
@@ -45,7 +45,7 @@ Using Gemini Enterprise with managed MCP servers? An admin may need to allow `ht
 ## What you can ask for
 
 ```text
-find me 5 well-rated coffee shops in Seattle and export to CSV
+Use Apify to find me 5 well-rated coffee shops in Seattle and export to CSV
 build me an Actor that scrapes a sitemap and stores titles
 turn this Python script into an Apify Actor
 add Apify to this Next.js app so I can run a scraper from /api/scrape
