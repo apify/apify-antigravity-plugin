@@ -17,7 +17,10 @@ jobs:
         run: |
           jq -e '.name == "apify"' plugin.json > /dev/null
           # Exact match: a query string such as ?client= stops Antigravity from starting OAuth.
+          # mcp.json (Agent Plugins spec) and mcp_config.json (native Antigravity) must name the same server;
+          # agy reads one or the other depending on its enable-agent-plugins-spec flag (see RELEASE.md, "Why two MCP files").
           jq -e '.mcpServers.apify.serverUrl == "https://mcp.apify.com"' mcp_config.json > /dev/null
+          jq -e '.mcpServers.apify == {"type": "streamable-http", "url": "https://mcp.apify.com"}' mcp.json > /dev/null
 
       - name: Install Antigravity CLI
         run: ./.github/scripts/install-agy.sh

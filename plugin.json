@@ -1,5 +1,5 @@
 {
-  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "apify",
   "displayName": "Apify",
   "description": "Run ready-made Actors from Apify, the largest marketplace of tools for AI, or build and publish your own.",

@@ -113,7 +113,7 @@ Actor runs started through the Apify CLI identify themselves as coming from this
 
 The skills, the `apify` agent, and the `apify` rule are generated from Apify's internal plugin source and synced here by pull request, so changes to them are made upstream. Please open an [issue in this repo](https://github.com/apify/apify-antigravity-plugin/issues) for problems or suggestions.
 
-To validate a local checkout, run `agy plugin validate --strict .` from the repo root. Keep the MCP server URL in `mcp_config.json` free of query strings such as `?client=`: Antigravity doesn't start the OAuth sign-in when the URL has one. Maintainers: see [RELEASE.md](RELEASE.md).
+To validate a local checkout, run `agy plugin validate --strict .` from the repo root. The plugin follows the [Agent Plugins](https://agent-plugins.org/) spec and also ships Antigravity's native `mcp_config.json`, so it loads either way. Keep the MCP server URL in `mcp.json` and `mcp_config.json` identical and free of query strings such as `?client=`: Antigravity doesn't start the OAuth sign-in when the URL has one. Maintainers: see [RELEASE.md](RELEASE.md).
 
 ## Resources
 

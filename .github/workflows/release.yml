@@ -64,7 +64,7 @@ jobs:
       - name: Verify the generated content is synced
         run: |
           missing=""
-          for entry in plugin.json mcp_config.json assets README.md LICENSE agents/apify.md rules/apify.md; do
+          for entry in plugin.json mcp.json mcp_config.json assets README.md LICENSE agents/apify.md rules/apify.md; do
             [ -e "$entry" ] || missing="$missing $entry"
           done
           ls skills/*/SKILL.md > /dev/null 2>&1 || missing="$missing skills/*/SKILL.md"
@@ -149,7 +149,7 @@ jobs:
         run: |
           ZIP=apify-antigravity-plugin.zip
           mkdir -p dist/apify
-          for entry in plugin.json mcp_config.json assets skills agents rules README.md LICENSE; do
+          for entry in plugin.json mcp.json mcp_config.json assets skills agents rules README.md LICENSE; do
             cp -R "$entry" dist/apify/
           done
           ( cd dist && zip -r "../$ZIP" apify -x '*.DS_Store' )
