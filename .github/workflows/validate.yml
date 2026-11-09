@@ -1,0 +1,40 @@
+name: Validate plugin
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Manifest and MCP config are valid JSON
+        run: |
+          jq -e '.name == "apify"' plugin.json > /dev/null
+          # Exact match: a query string such as ?client= stops Antigravity from starting OAuth.
+          # mcp.json (Agent Plugins spec) and mcp_config.json (native Antigravity) must name the same server;
+          # agy reads one or the other depending on its enable-agent-plugins-spec flag (see RELEASE.md, "Why two MCP files").
+          jq -e '.mcpServers.apify.serverUrl == "https://mcp.apify.com"' mcp_config.json > /dev/null
+          jq -e '.mcpServers.apify == {"type": "streamable-http", "url": "https://mcp.apify.com"}' mcp.json > /dev/null
+
+      - name: Install Antigravity CLI
+        run: ./.github/scripts/install-agy.sh
+
+      - name: Antigravity validator
+        run: agy plugin validate --strict --json .
+
+      - name: Routing rule fits Antigravity's 24,000-byte limit
+        run: |
+          # rules/ arrives with the first sync PR from apify-plugins-internal; until then, skip.
+          if [ ! -f rules/apify.md ]; then
+            echo "::notice::rules/apify.md not synced yet, skipping the size check"
+            exit 0
+          fi
+          size=$(wc -c < rules/apify.md)
+          echo "rules/apify.md: ${size} bytes"
+          test "$size" -le 24000

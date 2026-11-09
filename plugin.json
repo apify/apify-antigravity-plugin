@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "apify",
+  "displayName": "Apify",
+  "description": "Run ready-made Actors from Apify, the largest marketplace of tools for AI, or build and publish your own.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Apify",
+    "email": "support@apify.com",
+    "url": "https://apify.com"
+  },
+  "homepage": "https://apify.com",
+  "repository": "https://github.com/apify/apify-antigravity-plugin",
+  "license": "Apache-2.0",
+  "keywords": [
+    "apify",
+    "data",
+    "scraping",
+    "web-scraping",
+    "automation"
+  ],
+  "logo": "assets/icon.png",
+  "suggestedPrompts": [
+    "Use Apify to find the top 20 coffee shops in Prague on Google Maps with ratings and addresses",
+    "Create a new Apify Actor in TypeScript that scrapes product prices",
+    "Add Apify to my app to scrape LinkedIn job postings"
+  ]
+}

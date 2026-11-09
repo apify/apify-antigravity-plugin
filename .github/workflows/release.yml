@@ -1,0 +1,165 @@
+name: Create a release
+
+# Push-button release: run this from the Actions tab (no manual tagging).
+# git-cliff derives the version from conventional commits, we bump plugin.json
+# + CHANGELOG.md, create the GitHub release, and attach the plugin ZIP for app
+# users who install without git.
+#
+# The first release must use release_type "custom" (e.g. custom_version v1.0.0):
+# "auto" needs a prior tag.
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Release type
+        required: true
+        type: choice
+        default: auto
+        options: [auto, custom, patch, minor, major]
+      custom_version:
+        description: The custom version to bump to (only for "custom" type)
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release_metadata:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      version_number: ${{ steps.release_metadata.outputs.version_number }}
+      tag_name: ${{ steps.release_metadata.outputs.tag_name }}
+      changelog: ${{ steps.release_metadata.outputs.changelog }}
+      release_notes: ${{ steps.release_metadata.outputs.release_notes }}
+    steps:
+      - name: Verify running on main in the expected repository
+        if: github.ref != 'refs/heads/main' || github.repository != 'apify/apify-antigravity-plugin'
+        run: |
+          echo "::error title=Wrong branch or repository::Releases must run from main in apify/apify-antigravity-plugin. ref=${{ github.ref }} repo=${{ github.repository }}"
+          exit 1
+      - name: Validate inputs
+        if: inputs.release_type == 'custom' && inputs.custom_version == ''
+        run: |
+          echo "::error title=Missing custom_version::release_type is 'custom' but custom_version is empty. Provide a custom version (e.g. v1.0.0) and re-run the workflow."
+          exit 1
+      # git-cliff-release checks out into a subfolder, but its "Nothing to release"
+      # guard runs `git describe` in the workspace root; without this checkout the
+      # guard silently passes and an `auto` run re-releases the last tag.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Fail before anything is pushed or released: until the first sync PR from
+      # apify-plugins-internal lands, the ZIP would ship without skills, agent, and rule.
+      - name: Verify the generated content is synced
+        run: |
+          missing=""
+          for entry in plugin.json mcp.json mcp_config.json assets README.md LICENSE agents/apify.md rules/apify.md; do
+            [ -e "$entry" ] || missing="$missing $entry"
+          done
+          ls skills/*/SKILL.md > /dev/null 2>&1 || missing="$missing skills/*/SKILL.md"
+          if [ -n "$missing" ]; then
+            echo "::error title=Plugin content missing::Missing:$missing. Merge the sync PR from apify-plugins-internal first."
+            exit 1
+          fi
+      - uses: apify/actions/git-cliff-release@v1.1.2
+        name: Prepare release metadata
+        id: release_metadata
+        with:
+          release_type: ${{ inputs.release_type }}
+          custom_version: ${{ inputs.custom_version }}
+          existing_changelog_path: CHANGELOG.md
+
+  bump_and_changelog:
+    name: Bump plugin.json and update changelog
+    needs: [release_metadata]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      changelog_commitish: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.APIFY_SERVICE_ACCOUNT_GITHUB_TOKEN }}
+      - name: Bump version in plugin.json
+        env:
+          VERSION: ${{ needs.release_metadata.outputs.version_number }}
+        run: |
+          jq --indent 2 --arg v "$VERSION" '.version = $v' plugin.json > plugin.tmp && mv plugin.tmp plugin.json
+      - name: Write updated CHANGELOG.md
+        env:
+          CHANGELOG: ${{ needs.release_metadata.outputs.changelog }}
+        run: printf '%s\n' "$CHANGELOG" > CHANGELOG.md
+      - name: Commit and push
+        id: commit
+        env:
+          VERSION: ${{ needs.release_metadata.outputs.version_number }}
+        run: |
+          git config user.name  "apify-plugins-bot"
+          git config user.email "apify-plugins-bot@users.noreply.github.com"
+          git add plugin.json CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "No plugin.json/changelog changes to commit"
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "chore(release): ${VERSION} [skip ci]"
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  create_github_release:
+    name: Create GitHub release
+    needs: [release_metadata, bump_and_changelog]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: softprops/action-gh-release@v2.6.2
+        with:
+          tag_name: ${{ needs.release_metadata.outputs.tag_name }}
+          name: ${{ needs.release_metadata.outputs.version_number }}
+          body: ${{ needs.release_metadata.outputs.release_notes }}
+          target_commitish: ${{ needs.bump_and_changelog.outputs.changelog_commitish }}
+
+  package_zip:
+    name: Package and attach plugin ZIP
+    needs: [release_metadata, bump_and_changelog, create_github_release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump_and_changelog.outputs.changelog_commitish }}
+      # The file name stays fixed so README can link releases/latest/download/<name>.
+      # Everything sits under apify/, so unzipping into the plugins folder creates plugins/apify.
+      - name: Build plugin ZIP
+        run: |
+          ZIP=apify-antigravity-plugin.zip
+          mkdir -p dist/apify
+          for entry in plugin.json mcp.json mcp_config.json assets skills agents rules README.md LICENSE; do
+            cp -R "$entry" dist/apify/
+          done
+          ( cd dist && zip -r "../$ZIP" apify -x '*.DS_Store' )
+          echo "ZIP=$ZIP" >> "$GITHUB_ENV"
+          unzip -l "$ZIP"
+      - name: Attach ZIP to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ needs.release_metadata.outputs.tag_name }}" "$ZIP" --clobber
+      - name: Summary
+        run: |
+          echo "### Released ${{ needs.release_metadata.outputs.version_number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Attached \`$ZIP\` to [${{ needs.release_metadata.outputs.tag_name }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.release_metadata.outputs.tag_name }})" >> "$GITHUB_STEP_SUMMARY"

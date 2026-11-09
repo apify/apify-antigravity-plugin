@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "apify": {
+      "serverUrl": "https://mcp.apify.com"
+    }
+  }
+}
