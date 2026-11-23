@@ -84,6 +84,7 @@ jobs:
     name: Bump plugin.json and update changelog
     needs: [release_metadata]
     runs-on: ubuntu-latest
+    environment: automation
     permissions:
       contents: write
     outputs:
