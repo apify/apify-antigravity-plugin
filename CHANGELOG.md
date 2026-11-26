@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1](https://github.com/apify/apify-antigravity-plugin/releases/tag/v1.0.1) (2026-11-26)
+
+### 🐛 Bug Fixes
+
+- Update apify logo ([cb0d7e0](https://github.com/apify/apify-antigravity-plugin/commit/cb0d7e067c6a84724ca695a887627d607e144a2e)) by [@daveomri](https://github.com/daveomri)
+
+
 ## [1.0.0](https://github.com/apify/apify-antigravity-plugin/releases/tag/v1.0.0) (2026-11-10)
 
 ### 🚀 Features
